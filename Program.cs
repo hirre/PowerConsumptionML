@@ -1,15 +1,14 @@
 ﻿using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
-using static Microsoft.ML.DataOperationsCatalog;
 
 class Program
 {
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
         Console.WriteLine("Training data...");
 
-        await Train();
+        Train();
 
         Console.WriteLine("Predicting data...");
 
@@ -18,34 +17,9 @@ class Program
         Console.ReadKey();
     }
 
-    private static async Task Train()
+    private static void Train()
     {
-        // Define file path
-        string dataPath = "simulated_electricity_consumption.csv";
-
-        // Create MLContext
         var mlContext = new MLContext();
-
-        //Preview(dataView);
-
-        ColumnInferenceResults columnInference =
-        mlContext.Auto().InferColumns(dataPath, labelColumnName: "ConsumptionKwh", groupColumns: false);
-
-        TextLoader loader = mlContext.Data.CreateTextLoader(columnInference.TextLoaderOptions);
-        IDataView data = loader.Load(dataPath);
-        TrainTestData trainValidationData = mlContext.Data.TrainTestSplit(data, testFraction: 0.2);
-
-        SweepablePipeline pipeline =
-        mlContext.Auto().Featurizer(data, columnInformation: columnInference.ColumnInformation)
-        .Append(mlContext.Auto().Regression(labelColumnName: columnInference.ColumnInformation.LabelColumnName));
-
-        AutoMLExperiment experiment = mlContext.Auto().CreateExperiment();
-
-        experiment
-        .SetPipeline(pipeline)
-        .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: columnInference.ColumnInformation.LabelColumnName)
-        .SetTrainingTimeInSeconds(60)
-        .SetDataset(trainValidationData);
 
         // Log experiment trials
         mlContext.Log += (_, e) =>
@@ -56,48 +30,49 @@ class Program
             }
         };
 
-        TrialResult experimentResults = await experiment.RunAsync();
+        // Load data
+        var data = mlContext.Data.LoadFromTextFile<PowerConsumptionData>(
+            "simulated_electricity_consumption.csv", hasHeader: true, separatorChar: ',');
 
-        // Save the model
-        string modelPath = "PowerConsumptionModel.zip";
-        mlContext.Model.Save(experimentResults.Model, data.Schema, modelPath);
+        Preview(data);
 
-        Console.WriteLine($"Model trained and saved to {modelPath}");
+        // Split into Train/Test
+        var split = mlContext.Data.TrainTestSplit(data, testFraction: 0.2);
+
+        // Create AutoML Regression Experiment
+        var experiment = mlContext.Auto()
+            .CreateRegressionExperiment(maxExperimentTimeInSeconds: 60);  // 1 min
+
+        // Run AutoML
+        var result = experiment.Execute(split.TrainSet, labelColumnName: nameof(PowerConsumptionData.ConsumptionKwh));
+
+        Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared:P2}");
+
+        // Save the best model
+        mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, "PowerConsumptionModel.zip");
     }
 
     private static void Predict()
     {
         // Create MLContext
-        MLContext mlContext = new MLContext();
+        MLContext mlContext = new();
 
-        // Load Trained Model
-        DataViewSchema predictionPipelineSchema;
-        ITransformer predictionPipeline = mlContext.Model.Load("PowerConsumptionModel.zip", out predictionPipelineSchema);
+        // Load and predict
+        var loadedModel = mlContext.Model.Load("PowerConsumptionModel.zip", out _);
+        var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(loadedModel);
 
-        // Create a prediction engine
-        var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(predictionPipeline);
-
-        var inputData = new PowerConsumptionData[10];
         var startDate = new DateTime(2024, 12, 21, 15, 0, 0); // Example start date
+        var nextDateTime = startDate.AddHours(1);
 
-        for (int i = 0; i < 10; i++)
+        // Predict for the next 24 hours
+        for (int i = 0; i < 24; i++)
         {
-            // Prepare input data
-            var input = new PowerConsumptionData
-            {
-                Timestamp = startDate.AddHours(i).ToString("o"), // ISO 8601 format
-                ConsumptionKwh = 0 // Set a default value if required
-            };
+            var newPowerConsumption = new PowerConsumptionData { Month = nextDateTime.Month, Day = nextDateTime.Day, Hour = nextDateTime.Hour };
+            var prediction = predictionEngine.Predict(newPowerConsumption);
 
-            inputData[i] = input;
-        }
+            Console.WriteLine($"Predicted consumption ({nextDateTime}): {prediction.Consumption:0.##} KWh");
 
-        // Predict data
-        var predictions = inputData.Select(input => predictionEngine.Predict(input));
-
-        foreach (var prediction in predictions)
-        {
-            Console.WriteLine($"Predicted Consumption: {prediction.Consumption}");
+            nextDateTime = nextDateTime.AddHours(1); // Increment the hour
         }
     }
 
@@ -117,6 +92,7 @@ class Program
 // Define the prediction output class
 public class ConsumptionPrediction
 {
+    [ColumnName("Score")]
     public float Consumption { get; set; }
 }
 
@@ -124,9 +100,15 @@ public class ConsumptionPrediction
 public class PowerConsumptionData
 {
     [LoadColumn(0)]
-    public required string Timestamp { get; set; }
+    public float Month { get; set; }
 
     [LoadColumn(1)]
+    public float Day { get; set; }
+
+    [LoadColumn(2)]
+    public float Hour { get; set; }
+
+    [LoadColumn(3)]
     public float ConsumptionKwh { get; set; }
 }
 

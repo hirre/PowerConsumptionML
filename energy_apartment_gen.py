@@ -54,7 +54,9 @@ total_consumption = np.maximum(0.02, total_consumption) # Ensure a minimum plaus
 
 # 8. Create DataFrame
 df = pd.DataFrame({
-    'Timestamp': timestamps,
+    'Timestamp_Month': timestamps.month,
+    'Timestamp_Day': timestamps.day,
+    'Timestamp_Hour': timestamps.hour,
     'Consumption_kWh': total_consumption
 })
 
