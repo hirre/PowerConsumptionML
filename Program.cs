@@ -31,6 +31,8 @@ class Program
             hasHeader: true,
             separatorChar: ',');
 
+        Preview(dataView);
+
         // Update the pipeline to use the factory directly instead of the attribute
         var pipeline = mlContext.Transforms.CopyColumns(outputColumnName: "Consumption", inputColumnName: "ConsumptionKwh")
            .Append(mlContext.Transforms.CustomMapping(
@@ -64,16 +66,21 @@ class Program
         // Create a prediction engine
         var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(trainedModel);
 
-        // Prepare input data
-        var input = new PowerConsumptionData
+        var startDate = new DateTime(2023, 11, 1, 0, 0, 0); // Example start date
+
+        for (int i = 0; i < 10; i++)
         {
-            Timestamp = new DateTime(2024, 12, 22, 14, 0, 0), // Example timestamp
-        };
+            // Prepare input data
+            var input = new PowerConsumptionData
+            {
+                Timestamp = startDate.AddHours(i),
+            };
 
-        // Make a prediction
-        var prediction = predictionEngine.Predict(input);
+            // Make a prediction
+            var prediction = predictionEngine.Predict(input);
 
-        Console.WriteLine($"Predicted Consumption: {prediction.Consumption}");
+            Console.WriteLine($"Predicted Consumption ({input.Timestamp}): {prediction.Consumption} KWh");
+        }
     }
 
     private static void PrintTransformedData(MLContext mlContext, IDataView transformedData)
@@ -84,6 +91,16 @@ class Program
         foreach (var item in dataEnumerable)
         {
             Console.WriteLine($"Hour: {item.Hour}");
+        }
+    }
+
+    private static void Preview(IDataView dataView)
+    {
+        var preview = dataView.Preview();
+
+        foreach (var row in preview.RowView)
+        {
+            Console.WriteLine(string.Join(", ", row.Values));
         }
     }
 }
