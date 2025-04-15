@@ -6,11 +6,11 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("Training data...");
+        Console.WriteLine("Training data...\n");
 
         Train();
 
-        Console.WriteLine("Predicting data...");
+        Console.WriteLine("Predicting data...\n");
 
         Predict();
 
@@ -46,7 +46,12 @@ class Program
         // Run AutoML
         var result = experiment.Execute(split.TrainSet, labelColumnName: nameof(PowerConsumptionData.ConsumptionKwh));
 
-        Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared:P2}");
+        Console.WriteLine();
+        Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared}");
+        Console.WriteLine($"Absolute loss: {result.BestRun.ValidationMetrics.MeanAbsoluteError}");
+        Console.WriteLine($"Squared loss: {result.BestRun.ValidationMetrics.MeanSquaredError}");
+        Console.WriteLine($"RMS loss: {result.BestRun.ValidationMetrics.RootMeanSquaredError}");
+        Console.WriteLine();
 
         // Save the best model
         mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, "PowerConsumptionModel.zip");
