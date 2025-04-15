@@ -5,53 +5,81 @@ using Microsoft.ML.Data;
 
 class Program
 {
+    private static Options? _loadedOptions;
+
     public class Options
     {
         [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
         public bool Verbose { get; set; }
 
-        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file.")]
-        public bool Train { get; set; }
+        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption_kWh).")]
+        public string? Train { get; set; }
 
-        [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file (zip-file).")]
+        [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file that is piped in (file row: \"11,1,3\" means november 1 at hour 3).")]
         public bool Predict { get; set; }
+
+        [Option('o', "output", Required = true, HelpText = "Output model zip file (e.g. \"PowerConsumptionModel.zip\").")]
+        public required string OutputModelFile { get; set; }
     }
 
     static void Main(string[] args)
     {
-        var options = Parser.Default.ParseArguments<Options>(args);
+        _loadedOptions = Parser.Default.ParseArguments<Options>(args).Value;
 
-        if (options.Value.Verbose)
-            Console.WriteLine("Training data...\n");
+        if (_loadedOptions == null)
+        {
+            Console.WriteLine("Invalid options provided.");
+            return;
+        }
 
-        Train();
+        if (string.IsNullOrEmpty(_loadedOptions.OutputModelFile))
+        {
+            Console.WriteLine("Output file path is required.");
+            return;
+        }
 
-        if (options.Value.Verbose)
-            Console.WriteLine("Predicting data...\n");
+        if (!string.IsNullOrEmpty(_loadedOptions.Train))
+        {
+            Train();
+        }
 
-        Predict();
+        if (_loadedOptions.Predict)
+        {
+            if (_loadedOptions.Verbose)
+                Console.WriteLine("Predicting data...\n");
 
-        Console.ReadKey();
+            Predict();
+        }
     }
 
     private static void Train()
     {
+        if (_loadedOptions == null)
+        {
+            Console.WriteLine("Invalid options provided.");
+            return;
+        }
+
         var mlContext = new MLContext();
 
-        // Log experiment trials
-        mlContext.Log += (_, e) =>
+        if (_loadedOptions.Verbose)
         {
-            if (e.Source.Equals("AutoMLExperiment"))
+            // Log experiment trials
+            mlContext.Log += (_, e) =>
             {
-                Console.WriteLine(e.RawMessage);
-            }
-        };
+                if (e.Source.Equals("AutoMLExperiment"))
+                {
+                    Console.WriteLine(e.RawMessage);
+                }
+            };
+        }
 
         // Load data
         var data = mlContext.Data.LoadFromTextFile<PowerConsumptionData>(
-            "simulated_electricity_consumption.csv", hasHeader: true, separatorChar: ',');
+            _loadedOptions.Train, hasHeader: true, separatorChar: ',');
 
-        Preview(data);
+        if (_loadedOptions.Verbose)
+            Preview(data);
 
         // Split into Train/Test
         var split = mlContext.Data.TrainTestSplit(data, testFraction: 0.2);
@@ -63,38 +91,58 @@ class Program
         // Run AutoML
         var result = experiment.Execute(split.TrainSet, labelColumnName: nameof(PowerConsumptionData.ConsumptionKwh));
 
-        Console.WriteLine();
-        Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared}");
-        Console.WriteLine($"Absolute loss: {result.BestRun.ValidationMetrics.MeanAbsoluteError}");
-        Console.WriteLine($"Squared loss: {result.BestRun.ValidationMetrics.MeanSquaredError}");
-        Console.WriteLine($"RMS loss: {result.BestRun.ValidationMetrics.RootMeanSquaredError}");
-        Console.WriteLine();
+        if (_loadedOptions.Verbose)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared}");
+            Console.WriteLine($"Absolute loss: {result.BestRun.ValidationMetrics.MeanAbsoluteError}");
+            Console.WriteLine($"Squared loss: {result.BestRun.ValidationMetrics.MeanSquaredError}");
+            Console.WriteLine($"RMS loss: {result.BestRun.ValidationMetrics.RootMeanSquaredError}");
+            Console.WriteLine();
+        }
 
         // Save the best model
-        mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, "PowerConsumptionModel.zip");
+        mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, _loadedOptions.OutputModelFile);
     }
 
     private static void Predict()
     {
+        if (_loadedOptions == null)
+        {
+            Console.WriteLine("Invalid options provided.");
+            return;
+        }
+
         // Create MLContext
         MLContext mlContext = new();
 
         // Load and predict
-        var loadedModel = mlContext.Model.Load("PowerConsumptionModel.zip", out _);
+        var loadedModel = mlContext.Model.Load(_loadedOptions.OutputModelFile, out _);
         var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(loadedModel);
 
-        var startDate = new DateTime(2024, 12, 21, 15, 0, 0); // Example start date
-        var nextDateTime = startDate.AddHours(1);
+        string? input;
 
-        // Predict for the next 24 hours
-        for (int i = 0; i < 24; i++)
+        while ((input = Console.ReadLine()) != null)
         {
-            var newPowerConsumption = new PowerConsumptionData { Month = nextDateTime.Month, Day = nextDateTime.Day, Hour = nextDateTime.Hour };
+            if (string.IsNullOrEmpty(input))
+                break;
+
+            var values = input.Split(',');
+            if (values.Length != 3)
+            {
+                Console.WriteLine($"Invalid input format: {input}");
+                continue;
+            }
+            if (!int.TryParse(values[0], out int month) || !int.TryParse(values[1], out int day) || !int.TryParse(values[2], out int hour))
+            {
+                Console.WriteLine($"Invalid input values: {input}");
+                continue;
+            }
+
+            var newPowerConsumption = new PowerConsumptionData { Month = month, Day = day, Hour = hour };
             var prediction = predictionEngine.Predict(newPowerConsumption);
 
-            Console.WriteLine($"Predicted consumption ({nextDateTime}): {prediction.Consumption:0.##} KWh");
-
-            nextDateTime = nextDateTime.AddHours(1); // Increment the hour
+            Console.WriteLine(prediction.Consumption);
         }
     }
 

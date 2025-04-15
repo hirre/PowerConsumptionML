@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PowerConsumptionML": {
+      "commandName": "Project",
+      "commandLineArgs": "-o PowerConsumptionModel.zip -t simulated_electricity_consumption.csv -v"
+    }
+  }
+}
