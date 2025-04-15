@@ -1,16 +1,33 @@
-﻿using Microsoft.ML;
+﻿using CommandLine;
+using Microsoft.ML;
 using Microsoft.ML.AutoML;
 using Microsoft.ML.Data;
 
 class Program
 {
+    public class Options
+    {
+        [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
+        public bool Verbose { get; set; }
+
+        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file.")]
+        public bool Train { get; set; }
+
+        [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file (zip-file).")]
+        public bool Predict { get; set; }
+    }
+
     static void Main(string[] args)
     {
-        Console.WriteLine("Training data...\n");
+        var options = Parser.Default.ParseArguments<Options>(args);
+
+        if (options.Value.Verbose)
+            Console.WriteLine("Training data...\n");
 
         Train();
 
-        Console.WriteLine("Predicting data...\n");
+        if (options.Value.Verbose)
+            Console.WriteLine("Predicting data...\n");
 
         Predict();
 
@@ -41,7 +58,7 @@ class Program
 
         // Create AutoML Regression Experiment
         var experiment = mlContext.Auto()
-            .CreateRegressionExperiment(maxExperimentTimeInSeconds: 60);  // 1 min
+            .CreateRegressionExperiment(maxExperimentTimeInSeconds: 120);
 
         // Run AutoML
         var result = experiment.Execute(split.TrainSet, labelColumnName: nameof(PowerConsumptionData.ConsumptionKwh));
@@ -114,6 +131,12 @@ public class PowerConsumptionData
     public float Hour { get; set; }
 
     [LoadColumn(3)]
+    public float TempOutside { get; set; }
+
+    [LoadColumn(4)]
+    public float TempInside { get; set; }
+
+    [LoadColumn(5)]
     public float ConsumptionKwh { get; set; }
 }
 
