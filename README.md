@@ -1,5 +1,11 @@
 # Power Consumption ML
 
+How it works:
+
+![image](https://github.com/user-attachments/assets/af0c74c9-d518-470e-83e6-e05c4ffe3681)
+
+
+
 Training data CSV file format (header):
 ```
 Timestamp_Month, Timestamp_Day, Timestamp_Hour, Temp_outside, Temp_inside, Consumption_kWh
