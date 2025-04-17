@@ -2,7 +2,7 @@
   "profiles": {
     "PowerConsumptionML": {
       "commandName": "Project",
-      "commandLineArgs": "-o PowerConsumptionModel.zip -t simulated_electricity_consumption.csv -v"
+      "commandLineArgs": "-t simulated_electricity_consumption.csv PowerConsumptionModel.zip -v"
     }
   }
 }

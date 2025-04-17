@@ -12,14 +12,14 @@ class Program
         [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
         public bool Verbose { get; set; }
 
-        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption_kWh).")]
-        public string? Train { get; set; }
+        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption_kWh). Usage: -t modeloutputname.zip")]
+        public IEnumerable<string>? Train { get; set; }
 
         [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file that is piped in (file row: \"11,1,3\" means november 1 at hour 3).")]
         public bool Predict { get; set; }
 
-        [Option('o', "output", Required = true, HelpText = "Output model zip file (e.g. \"PowerConsumptionModel.zip\").")]
-        public required string OutputModelFile { get; set; }
+        [Option('m', "model", Required = false, HelpText = "Model file (e.g. \"PowerConsumptionModel.zip\").")]
+        public string? ModelFile { get; set; }
     }
 
     static void Main(string[] args)
@@ -32,19 +32,19 @@ class Program
             return;
         }
 
-        if (string.IsNullOrEmpty(_loadedOptions.OutputModelFile))
-        {
-            Console.WriteLine("Output file path is required.");
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(_loadedOptions.Train))
+        if (_loadedOptions.Train != null && _loadedOptions.Train.Any() && _loadedOptions.Train.Count() == 2)
         {
             Train();
         }
 
         if (_loadedOptions.Predict)
         {
+            if (string.IsNullOrEmpty(_loadedOptions.ModelFile))
+            {
+                Console.WriteLine("Output file path is required.");
+                return;
+            }
+
             if (_loadedOptions.Verbose)
                 Console.WriteLine("Predicting data...\n");
 
@@ -54,11 +54,16 @@ class Program
 
     private static void Train()
     {
-        if (_loadedOptions == null)
+        if (_loadedOptions == null || _loadedOptions.Train == null)
         {
             Console.WriteLine("Invalid options provided.");
             return;
         }
+
+        var trainOptions = _loadedOptions.Train.ToList();
+
+        var inputFile = trainOptions[0];
+        var outputFile = trainOptions[1];
 
         var mlContext = new MLContext();
 
@@ -76,7 +81,7 @@ class Program
 
         // Load data
         var data = mlContext.Data.LoadFromTextFile<PowerConsumptionData>(
-            _loadedOptions.Train, hasHeader: true, separatorChar: ',');
+            inputFile, hasHeader: true, separatorChar: ',');
 
         if (_loadedOptions.Verbose)
             Preview(data);
@@ -102,7 +107,7 @@ class Program
         }
 
         // Save the best model
-        mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, _loadedOptions.OutputModelFile);
+        mlContext.Model.Save(result.BestRun.Model, split.TrainSet.Schema, outputFile);
     }
 
     private static void Predict()
@@ -117,7 +122,7 @@ class Program
         MLContext mlContext = new();
 
         // Load and predict
-        var loadedModel = mlContext.Model.Load(_loadedOptions.OutputModelFile, out _);
+        var loadedModel = mlContext.Model.Load(_loadedOptions.ModelFile, out _);
         var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(loadedModel);
 
         string? input;
