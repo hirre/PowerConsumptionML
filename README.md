@@ -8,7 +8,7 @@ How it works:
 
 Training data CSV file format (header):
 ```
-ObjectId,Timestamp_Month, Timestamp_Day, Timestamp_Hour, Temp_outside, Temp_inside, Consumption
+ObjectId, Timestamp_Month, Timestamp_Day, Timestamp_Hour, Temp_outside, Temp_inside, Consumption
 ```
 
 Example:
