@@ -1,4 +1,4 @@
-ObjektId,Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_inside,Temp_outside,Consumption_kWh
+ObjektId,Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_inside,Temp_outside,Consumption
 32125434,1,1,0,22.9,11.0,1.74
 32125434,1,1,1,23.6,9.7,1.74
 32125434,1,1,2,23.8,11.3,2.78

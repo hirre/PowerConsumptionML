@@ -8,7 +8,7 @@ How it works:
 
 Training data CSV file format (header):
 ```
-ObjectId,Timestamp_Month, Timestamp_Day, Timestamp_Hour, Temp_outside, Temp_inside, Consumption_kWh
+ObjectId,Timestamp_Month, Timestamp_Day, Timestamp_Hour, Temp_outside, Temp_inside, Consumption
 ```
 
 Example:
@@ -38,7 +38,7 @@ Where input.txt contains wanted power consumption forecasts (one wanted forecast
 ```
 
 
-indicate wanted power consumption forecast for april 5th 16 o'clock (24 hour clock) and for 17 o'clock. This will, in this example, give you two forecast values (kWh), one in each corresponding output row, for example:
+indicate wanted power consumption forecast for april 5th 16 o'clock (24 hour clock) and for 17 o'clock. This will, in this example, give you two forecast values (e.g. kWh), one in each corresponding output row, for example:
 ```
 321432345,1.3232
 321432345,1.4411

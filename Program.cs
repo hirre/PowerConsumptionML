@@ -12,7 +12,7 @@ class Program
         [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
         public bool Verbose { get; set; }
 
-        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption_kWh). Usage: -t modeloutputname.zip")]
+        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption). Usage: -t modeloutputname.zip")]
         public IEnumerable<string>? Train { get; set; }
 
         [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file that is piped in (file row: \"11,1,3\" means november 1 at hour 3).")]
@@ -126,7 +126,7 @@ class Program
 
         var columnInfo = new ColumnInformation()
         {
-            LabelColumnName = nameof(PowerConsumptionData.ConsumptionKwh)
+            LabelColumnName = nameof(PowerConsumptionData.Consumption)
         };
 
         // Run AutoML
@@ -264,7 +264,7 @@ public class PowerConsumptionData
     public float TempInside { get; set; }
 
     [LoadColumn(6)]
-    public float ConsumptionKwh { get; set; }
+    public float Consumption { get; set; }
 }
 
 #endregion
