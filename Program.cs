@@ -92,6 +92,31 @@ class Program
         if (_loadedOptions.Verbose)
             Preview(data);
 
+        try
+        {
+            var whiteList = mlContext.Data
+            .CreateEnumerable<ObjectClass>(data, reuseRowObject: false)
+            .Select(x => x.ObjectId)
+            .Distinct()
+            .Cast<string>();
+
+            var whiteListIdFilePath = outputFile.Replace(".zip", "") + ".dat";
+
+            if (whiteList != null)
+            {
+                File.WriteAllLines(whiteListIdFilePath, whiteList);
+
+                if (_loadedOptions.Verbose)
+                {
+                    Console.WriteLine($"ObjectId list saved to {whiteListIdFilePath}");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine(e);
+        }
+
         // Split into Train/Test
         var split = mlContext.Data.TrainTestSplit(data, testFraction: 0.2);
 
@@ -147,6 +172,15 @@ class Program
         var loadedModel = mlContext.Model.Load(_loadedOptions.ModelFile, out _);
         var predictionEngine = mlContext.Model.CreatePredictionEngine<PowerConsumptionData, ConsumptionPrediction>(loadedModel);
 
+        var whiteListMap = new HashSet<string>();
+
+        if (!string.IsNullOrEmpty(_loadedOptions.ModelFile))
+        {
+            var whiteListIdFilePath = _loadedOptions.ModelFile.Replace(".zip", "") + ".dat";
+
+            whiteListMap = [.. File.ReadAllLines(whiteListIdFilePath)];
+        }
+
         string? input;
 
         while ((input = Console.ReadLine()) != null)
@@ -155,21 +189,26 @@ class Program
                 break;
 
             var values = input.Split(',');
+
             if (values.Length != 4)
             {
                 Console.WriteLine($"Invalid input format: {input}");
                 continue;
             }
+
             if (!int.TryParse(values[1], out int month) || !int.TryParse(values[2], out int day) || !int.TryParse(values[3], out int hour))
             {
                 Console.WriteLine($"Invalid input values: {input}");
                 continue;
             }
 
-            var newPowerConsumption = new PowerConsumptionData { ObjectId = values[0], Month = month, Day = day, Hour = hour };
-            var prediction = predictionEngine.Predict(newPowerConsumption);
+            if (whiteListMap.Contains(values[0]))
+            {
+                var newPowerConsumption = new PowerConsumptionData { ObjectId = values[0], Month = month, Day = day, Hour = hour };
+                var prediction = predictionEngine.Predict(newPowerConsumption);
 
-            Console.WriteLine(prediction.Consumption);
+                Console.WriteLine($"{values[0]},{prediction.Consumption}");
+            }
         }
     }
 
@@ -196,6 +235,11 @@ public class ConsumptionPrediction
 {
     [ColumnName("Score")]
     public float Consumption { get; set; }
+}
+
+public class ObjectClass
+{
+    public string? ObjectId { get; set; }
 }
 
 // Define data schema
