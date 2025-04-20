@@ -12,10 +12,10 @@ class Program
         [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
         public bool Verbose { get; set; }
 
-        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption). Usage: -t modeloutputname.zip")]
+        [Option('t', "train", Required = false, HelpText = "Train a model given an input csv file (ObjectId,Timestamp_Month,Timestamp_Day,Timestamp_Hour,Temp_outside,Temp_inside,Consumption).")]
         public IEnumerable<string>? Train { get; set; }
 
-        [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file that is piped in (file row: \"11,1,3\" means november 1 at hour 3).")]
+        [Option('p', "predict", Required = false, HelpText = "Predict/forecast given a model file that is piped in.")]
         public bool Predict { get; set; }
 
         [Option('m', "model", Required = false, HelpText = "Model file (e.g. \"PowerConsumptionModel.zip\").")]
@@ -70,6 +70,25 @@ class Program
 
         var inputFile = trainOptions[0];
         var outputFile = trainOptions[1];
+
+        if (string.IsNullOrEmpty(inputFile) || string.IsNullOrEmpty(outputFile))
+        {
+            Console.WriteLine("Input and output file paths are required.");
+            return;
+        }
+
+        if (!File.Exists(inputFile))
+        {
+            Console.WriteLine($"Input file {inputFile} does not exist.");
+            return;
+        }
+
+        var outputDirectory = Path.GetDirectoryName(outputFile);
+
+        if (outputDirectory != null && !Directory.Exists(outputDirectory))
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
 
         var mlContext = new MLContext();
 

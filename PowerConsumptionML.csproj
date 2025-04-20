@@ -17,9 +17,13 @@
     <None Update="input.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="simulated_electricity_consumption.csv">
+    <None Update="TrainingData\simulated_electricity_consumption.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ModelOutput\" />
   </ItemGroup>
 
 </Project>
