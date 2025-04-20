@@ -23,12 +23,12 @@ Example:
 
 Training:
 ```
-PowerConsumption.exe -t simulated_electricity_consumption.csv PowerConsumptionModel.zip -v
+PowerConsumptionML.exe -t simulated_electricity_consumption.csv PowerConsumptionModel.zip -v
 ```
 
 Forecast:
 ```
-cat input.txt | PowerConsumption.exe -m PowerConsumptionModel.zip -p
+cat input.txt | PowerConsumptionML.exe -m PowerConsumptionModel.zip -p
 ```
 Where input.txt contains wanted power consumption forecasts (one wanted forecast per input row). For example the rows:
 

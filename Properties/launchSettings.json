@@ -3,6 +3,7 @@
     "PowerConsumptionML": {
       "commandName": "Project",
       "commandLineArgs": "-t simulated_electricity_consumption.csv PowerConsumptionModel.zip -v"
+      //"commandLineArgs": "-m PowerConsumptionModel.zip -p"
     }
   }
 }

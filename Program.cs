@@ -50,6 +50,12 @@ class Program
 
             Predict();
         }
+
+        if (System.Diagnostics.Debugger.IsAttached)
+        {
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
     }
 
     private static void Train()
@@ -93,16 +99,32 @@ class Program
         var experiment = mlContext.Auto()
             .CreateRegressionExperiment(maxExperimentTimeInSeconds: 120);
 
+        var columnInfo = new ColumnInformation()
+        {
+            LabelColumnName = nameof(PowerConsumptionData.ConsumptionKwh)
+        };
+
         // Run AutoML
-        var result = experiment.Execute(split.TrainSet, labelColumnName: nameof(PowerConsumptionData.ConsumptionKwh));
+        var result = experiment.Execute(split.TrainSet, columnInfo);
 
         if (_loadedOptions.Verbose)
         {
             Console.WriteLine();
+            Console.WriteLine($"Best Model: {result.BestRun.TrainerName}");
             Console.WriteLine($"Best Model R-squared: {result.BestRun.ValidationMetrics.RSquared}");
             Console.WriteLine($"Absolute loss: {result.BestRun.ValidationMetrics.MeanAbsoluteError}");
             Console.WriteLine($"Squared loss: {result.BestRun.ValidationMetrics.MeanSquaredError}");
             Console.WriteLine($"RMS loss: {result.BestRun.ValidationMetrics.RootMeanSquaredError}");
+
+            // Inspect the output schema of the best model
+            var outputSchema = result.BestRun.Model.GetOutputSchema(split.TrainSet.Schema);
+
+            Console.WriteLine("Model Output Schema:");
+            foreach (var column in outputSchema)
+            {
+                Console.WriteLine($"Column Name: {column.Name}, Column Type: {column.Type}");
+            }
+
             Console.WriteLine();
         }
 
@@ -133,18 +155,18 @@ class Program
                 break;
 
             var values = input.Split(',');
-            if (values.Length != 3)
+            if (values.Length != 4)
             {
                 Console.WriteLine($"Invalid input format: {input}");
                 continue;
             }
-            if (!int.TryParse(values[0], out int month) || !int.TryParse(values[1], out int day) || !int.TryParse(values[2], out int hour))
+            if (!int.TryParse(values[1], out int month) || !int.TryParse(values[2], out int day) || !int.TryParse(values[3], out int hour))
             {
                 Console.WriteLine($"Invalid input values: {input}");
                 continue;
             }
 
-            var newPowerConsumption = new PowerConsumptionData { Month = month, Day = day, Hour = hour };
+            var newPowerConsumption = new PowerConsumptionData { ObjectId = values[0], Month = month, Day = day, Hour = hour };
             var prediction = predictionEngine.Predict(newPowerConsumption);
 
             Console.WriteLine(prediction.Consumption);
@@ -158,6 +180,11 @@ class Program
         foreach (var row in preview.RowView)
         {
             Console.WriteLine(string.Join(", ", row.Values));
+        }
+
+        foreach (var col in preview.Schema)
+        {
+            Console.WriteLine($"{col.Name} - {col.Type}");
         }
     }
 }
@@ -175,21 +202,24 @@ public class ConsumptionPrediction
 public class PowerConsumptionData
 {
     [LoadColumn(0)]
-    public float Month { get; set; }
+    public required string ObjectId { get; set; }
 
     [LoadColumn(1)]
-    public float Day { get; set; }
+    public float Month { get; set; }
 
     [LoadColumn(2)]
-    public float Hour { get; set; }
+    public float Day { get; set; }
 
     [LoadColumn(3)]
-    public float TempOutside { get; set; }
+    public float Hour { get; set; }
 
     [LoadColumn(4)]
-    public float TempInside { get; set; }
+    public float TempOutside { get; set; }
 
     [LoadColumn(5)]
+    public float TempInside { get; set; }
+
+    [LoadColumn(6)]
     public float ConsumptionKwh { get; set; }
 }
 
